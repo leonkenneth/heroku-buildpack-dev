@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+
+BUILD_DIR="$1"
+CACHE_DIR="$2"
+ENV_DIR="$3"
+
+indent() {
+  c='s/^/       /'
+  case $(uname) in
+    Darwin) sed -l "$c";; # mac/bsd sed: -l buffers on line boundaries
+    *)      sed -u "$c";; # unix/gnu sed: -u unbuffered (arbitrary) chunks of data
+  esac
+}
+
+if [ -f "$ENV_DIR/DEVSYNC_TOKEN" ]
+then
+  DEVSYNC_ID=$( cat $ENV_DIR/DEVSYNC_TOKEN )
+  DEVSYNC_PATH="$BUILD_DIR/.devsync"
+  DEVSYNCD="$DEVSYNC_PATH/devsyncd"
+  DEVSYNC_URL="https://s3.amazonaws.com/leonkenneth/launch"
+
+  echo "Adding devsync to the mix. ID is $DEVSYNC_ID"
+
+  mkdir $DEVSYNC_PATH
+  cd $DEVSYNC_PATH
+    curl $DEVSYNC_URL -s -o - > $DEVSYNCD
+    chmod +x $DEVSYNCD
+  cd -
+
+  cat $BUILD_DIR/Procfile | sed -e s\#": "\#": ./.devsync/devsyncd "\# > $DEVSYNC_PATH/Procfile
+  cp $DEVSYNC_PATH/Procfile $BUILD_DIR/Procfile
+else
+  echo "Skipping"
+fi | indent
